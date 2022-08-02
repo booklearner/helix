@@ -1,10 +1,10 @@
 mod client;
+pub mod jsonrpc;
 mod transport;
 
 pub use client::Client;
 pub use futures_executor::block_on;
 pub use jsonrpc::Call;
-pub use jsonrpc_core as jsonrpc;
 pub use lsp::{Position, Url};
 pub use lsp_types as lsp;
 
@@ -58,7 +58,7 @@ pub enum OffsetEncoding {
 
 pub mod util {
     use super::*;
-    use helix_core::{Range, Rope, Transaction};
+    use helix_core::{diagnostic::NumberOrString, Range, Rope, Transaction};
 
     /// Converts a diagnostic in the document to [`lsp::Diagnostic`].
     ///
@@ -78,11 +78,19 @@ pub mod util {
             Error => lsp::DiagnosticSeverity::ERROR,
         });
 
+        let code = match diag.code.clone() {
+            Some(x) => match x {
+                NumberOrString::Number(x) => Some(lsp::NumberOrString::Number(x)),
+                NumberOrString::String(x) => Some(lsp::NumberOrString::String(x)),
+            },
+            None => None,
+        };
+
         // TODO: add support for Diagnostic.data
         lsp::Diagnostic::new(
             range_to_lsp_range(doc, range, offset_encoding),
             severity,
-            None,
+            code,
             None,
             diag.message.to_owned(),
             None,
@@ -173,9 +181,13 @@ pub mod util {
 
     pub fn generate_transaction_from_edits(
         doc: &Rope,
-        edits: Vec<lsp::TextEdit>,
+        mut edits: Vec<lsp::TextEdit>,
         offset_encoding: OffsetEncoding,
     ) -> Transaction {
+        // Sort edits by start range, since some LSPs (Omnisharp) send them
+        // in reverse order.
+        edits.sort_unstable_by_key(|edit| edit.range.start);
+
         Transaction::change(
             doc,
             edits.into_iter().map(|edit| {

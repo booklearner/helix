@@ -78,6 +78,7 @@ pub struct LanguageConfiguration {
 
     #[serde(default)]
     pub auto_format: bool,
+
     #[serde(default)]
     pub diagnostic_severity: Severity,
 
@@ -307,13 +308,7 @@ impl TextObjectQuery {
                 let nodes: Vec<_> = mat
                     .captures
                     .iter()
-                    .filter_map(|x| {
-                        if x.index == capture_idx {
-                            Some(x.node)
-                        } else {
-                            None
-                        }
-                    })
+                    .filter_map(|cap| (cap.index == capture_idx).then(|| cap.node))
                     .collect();
 
                 if nodes.len() > 1 {
@@ -333,29 +328,15 @@ fn read_query(language: &str, filename: &str) -> String {
 
     let query = load_runtime_file(language, filename).unwrap_or_default();
 
-    // TODO: the collect() is not ideal
-    let inherits = INHERITS_REGEX
-        .captures_iter(&query)
-        .flat_map(|captures| {
+    // replaces all "; inherits <language>(,<language>)*" with the queries of the given language(s)
+    INHERITS_REGEX
+        .replace_all(&query, |captures: &regex::Captures| {
             captures[1]
                 .split(',')
-                .map(str::to_owned)
-                .collect::<Vec<_>>()
+                .map(|language| format!("\n{}\n", read_query(language, filename)))
+                .collect::<String>()
         })
-        .collect::<Vec<_>>();
-
-    if inherits.is_empty() {
-        return query;
-    }
-
-    let mut queries = inherits
-        .iter()
-        .map(|language| read_query(language, filename))
-        .collect::<Vec<_>>();
-
-    queries.push(query);
-
-    queries.concat()
+        .to_string()
 }
 
 impl LanguageConfiguration {

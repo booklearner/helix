@@ -46,6 +46,43 @@
 (assignment_expression
   left: (identifier) @function
   right: [(function) (arrow_function)])
+  
+; Function and method parameters
+;-------------------------------
+
+; (p) => ...
+(formal_parameters 
+  (identifier) @variable.parameter)
+
+; (...p) => ...
+(formal_parameters
+  (rest_pattern
+    (identifier) @variable.parameter))
+
+; ({ p }) => ...
+(formal_parameters
+  (object_pattern
+    (shorthand_property_identifier_pattern) @variable.parameter))
+
+; ({ a: p }) => ...
+(formal_parameters
+  (object_pattern
+    (pair_pattern
+      value: (identifier) @variable.parameter)))
+
+; ([ p ]) => ...
+(formal_parameters
+  (array_pattern
+    (identifier) @variable.parameter))
+
+; (p = 1) => ...
+(formal_parameters
+  (assignment_pattern
+    left: (identifier) @variable.parameter))
+
+; p => ...
+(arrow_function
+  parameter: (identifier) @variable.parameter)
 
 ; Function and method calls
 ;--------------------------
@@ -66,6 +103,8 @@
 ;-----------
 
 (property_identifier) @variable.other.member
+(shorthand_property_identifier) @variable.other.member
+(shorthand_property_identifier_pattern) @variable.other.member
 
 ; Literals
 ;---------
@@ -149,7 +188,10 @@
   "&&="
   "||="
   "??="
+  "..."
 ] @operator
+
+(ternary_expression ["?" ":"] @operator)
 
 [
   "("
@@ -163,19 +205,14 @@
 [
   "as"
   "async"
-  "class"
-  "const"
   "debugger"
   "delete"
-  "export"
   "extends"
   "from"
   "function"
   "get"
-  "import"
   "in"
   "instanceof"
-  "let"
   "new"
   "of"
   "set"
@@ -183,10 +220,16 @@
   "target"
   "try"
   "typeof"
-  "var"
   "void"
   "with"
 ] @keyword
+
+[
+  "class"
+  "let"
+  "const"
+  "var"
+] @keyword.storage.type
 
 [
   "switch"
@@ -206,3 +249,9 @@
   "do"
   "await"
 ] @keyword.control
+
+[
+  "import"
+  "export"
+] @keyword.control.import 
+
